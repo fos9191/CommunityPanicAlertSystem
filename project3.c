@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #define SIZE 100
+#define FILESIZE 1024
 
 // This host will send and recieve data through server_sockfd, on port no. server_port
 int server_sockfd, server_port;
@@ -96,7 +97,7 @@ int send_alert(int sockfd) {
             }
             fclose(track); // Close tracker file once all messages sent
         }
-       
+        
         bzero(buffer, SIZE); // Clear alert data from buffer
     }
     printf("[+] Finished sending\n");
@@ -193,7 +194,7 @@ void addToTracker(char *ip, int port, char* line) {
     while (!feof(track)) { // Until end of file
         fscanf(track, "%d %s\n", &destination_port, ip_addr);   // Read in a hosts port and ip address
         if (server_port != destination_port) {                  // If it's not your port...
-           
+            
             // Set the destination address data...
             dest_addr.sin_family = AF_INET;
             dest_addr.sin_port = destination_port;
@@ -212,6 +213,74 @@ void addToTracker(char *ip, int port, char* line) {
     }
     fclose(track); // Close tracker file once all messages sent
 }
+
+// -------------------------------------
+// Create and write to new tracker file
+// -------------------------------------
+void write_file(int sockfd) {
+    int n;
+    FILE *fp;
+    char *filename = "myTracker.txt";
+    char buffer[FILESIZE];
+
+    fp = fopen(filename, "w");
+    if (fp == NULL) {
+        perror("[-]Error in writing file\n");
+        exit(1);
+    }
+
+    while (1) {
+        n = recv(sockfd, buffer, FILESIZE, 0);
+        if(n <= 0) {
+            break;
+            return;
+        }
+        fprintf(fp, "%s", buffer);
+        bzero(buffer, FILESIZE);
+    }
+    return;
+}
+
+// ------------------------------------------
+// Get up to date tracker from TrackerServer
+// ------------------------------------------
+int getTracker() {
+    char *ip = "127.0.0.1";
+    int port = 8080; 
+    int e;
+
+    int sockfd;
+    struct sockaddr_in server_addr;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("[-]Error in socket\n");
+        exit(1);
+    }
+    printf("[+]Server socket created\n");
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = port;
+    server_addr.sin_addr.s_addr = inet_addr(ip); 
+
+    e = connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    if (e == -1) {
+        perror("[-]Error in connecting\n");
+        exit(1);
+    }
+    printf("[+]Connected to server\n");
+
+    write_file(sockfd);
+    printf("[+]File data sent successfully\n");
+
+    close(sockfd);
+    printf("[+]Disconnected from the server\n");
+
+    return 0;
+}
+
+
+
 
 
 // ------------------------------------------------
@@ -239,6 +308,9 @@ int main(int argc, const char *argv[]) {
         printf("[-] Please specify user port and ip address\n");
         exit(1);
     }
+
+int h;
+    h = getTracker();
    
     strcpy(ip_copy, ip); //************do we need this?***********
    
@@ -260,7 +332,7 @@ int main(int argc, const char *argv[]) {
         perror("[-] Bind error\n");
         exit(1);
     }
-   
+    
     // Add this new hosts port and IP to trackers
     addToTracker(ip_copy, server_port, newHost);
 

@@ -81,7 +81,7 @@ int send_alert(int sockfd) {
                    
                     // Set the destination address data...
                     dest_addr.sin_family = AF_INET;
-                    dest_addr.sin_port = destination_port;
+                    dest_addr.sin_port = htons(destination_port);
                     dest_addr.sin_addr.s_addr = inet_addr(ip);
 
                     // Then send the alert message to it. Print error message if send unsuccessful
@@ -197,7 +197,7 @@ void addToTracker(char *ip, int port, char* line) {
             
             // Set the destination address data...
             dest_addr.sin_family = AF_INET;
-            dest_addr.sin_port = destination_port;
+            dest_addr.sin_port = htons(destination_port);
             dest_addr.sin_addr.s_addr = inet_addr(ip_addr);
 
             // Then send the alert message to it. Print error message if send unsuccessful
@@ -260,7 +260,7 @@ int getTracker() {
     printf("[+]Server socket created\n");
 
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = port;
+    server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = inet_addr(ip); 
 
     e = connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
@@ -309,8 +309,8 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
 
-int h;
-    h = getTracker();
+// int h;
+//     h = getTracker();
    
     strcpy(ip_copy, ip); //************do we need this?***********
    
@@ -323,7 +323,7 @@ int h;
 
     // Set up the current host address data
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = server_port;
+    server_addr.sin_port = htons(server_port);
     server_addr.sin_addr.s_addr = inet_addr(ip);
 
     // Bind address data to socket, print error message if unsuccessful

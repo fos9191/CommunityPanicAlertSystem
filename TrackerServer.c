@@ -6,7 +6,7 @@
 #include <pthread.h>
 
 #define SIZE 1024
-#define LINE_SIZE 30
+#define LINE_SIZE 26
 char *filename = "mainTracker.txt";
 
 void send_file(int sockfd) {
@@ -21,7 +21,7 @@ void send_file(int sockfd) {
 
     //send each line of the file to the new node joining
     while(fgets(data, SIZE, fp) != NULL) {
-        if (send(sockfd, data, sizeof(data), 0) == -1) {
+        if (send(sockfd, data, SIZE, 0) == -1) {
             perror("[-] Error in sending data\n");
             exit(1);
         }
@@ -31,30 +31,55 @@ void send_file(int sockfd) {
     data[0] = 'X'; //terminator to tell client that the file has finished sending
 
     //send the termintor 'X'
-    if (send(sockfd, data, sizeof(data), 0) == -1) {
+    if (send(sockfd, data, SIZE, 0) == -1) {
         perror("[-] Error in sending terminator\n");
         exit(1);
     }
 }
 
-// ******************* NEED TO FIX ****************
-void recv_newLine(int sockfd) {
-    char newLine[LINE_SIZE]  = {0};
+int findLine(char *line) {
     FILE *fp;
-    
-    if (recv(sockfd, newLine, sizeof(newLine), 0) == -1) {
-        perror("[-] Error receiving newLine\n");
-        exit(1);
-    }
-    printf("[+] New host on the network %s", newLine);
+    char compareLine[LINE_SIZE] = {0};
 
-    fp = fopen (filename, "a");
+    fp = fopen(filename, "r");
     if (!fp) {
         printf("[-] Unable to open mainTracker.txt\n");
         exit(1);
     }
-    fprintf(fp, "%s\n", newLine);
-    fclose(fp); // Close main tracker file once new line appended
+
+    while (!feof(fp)) {
+        fscanf(fp, "%[^\n]\n", compareLine); // Read in a line from mainTracker.txt
+        if (!strcmp(compareLine, line))
+            return 1; // Return 1 if line found in mainTracker.txt
+        bzero(compareLine, LINE_SIZE);
+    }
+    fclose(fp);
+    return 0;
+}
+
+void recv_newLine(int sockfd) {
+    char newLine[LINE_SIZE]  = {0};
+    FILE *fp;
+    int found;
+    
+    if (recv(sockfd, newLine, LINE_SIZE, 0) == -1) {
+        perror("[-] Error receiving newLine\n");
+        exit(1);
+    }
+    printf("[+] New host on the network %s\n", newLine);
+    
+    if (!findLine(newLine)) {
+        fp = fopen (filename, "a");
+        if (!fp) {
+            printf("[-] Unable to open mainTracker.txt\n");
+            exit(1);
+        }
+        fprintf(fp, "%s\n", newLine); // Append line to mainTracker.txt
+        printf("[+] Node added to tracker\n");
+        fclose(fp); // Close main tracker file once new line appended
+    }
+    else
+        printf("[-] Node already in tracker\n");
 
     bzero(newLine, LINE_SIZE);
 }
@@ -76,7 +101,6 @@ int main() {
     }
     printf("[+] TrackerServer socket created\n");
 
-    // memset(&server_addr, '\0', sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = inet_addr(ip);

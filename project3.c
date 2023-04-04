@@ -98,7 +98,6 @@ int send_alert(int sockfd) {
             }
             fclose(track); // Close tracker file once all messages sent
         }
-        
         bzero(buffer, SIZE); // Clear alert data from buffer
     }
     printf("[+] Finished sending\n");
@@ -250,8 +249,8 @@ void write_file(int sockfd) {
 // --------------------------------------------------------
 // Send this host tracker file line to tracker distributor
 // --------------------------------------------------------
-void snd_newLine(int sockfd, char * newLine) {
-    if (send(sockfd, newLine, sizeof(newLine), 0) == -1) {
+void snd_newLine(int sockfd, char *newLine) {
+    if (send(sockfd, newLine, 26, 0) == -1) {
         perror("[-] Error sending host address line to tracker distibutor");
         exit(1);
     }

@@ -260,7 +260,7 @@ void snd_newLine(int sockfd, char *newLine) {
 // Get up to date tracker from TrackerServer
 // ------------------------------------------
 int getTracker(char *line) {
-    char *tracker_ip = "127.0.0.1"; // ********** INSERT TRACKER DISTRIBUTER NODE IP ************
+    char *tracker_ip = "10.35.70.11"; // ********** INSERT TRACKER DISTRIBUTER NODE IP ************
     int tracker_port = 33333; 
     int e;
 

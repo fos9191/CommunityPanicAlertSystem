@@ -12,6 +12,7 @@ int server_sockfd, server_port;
 
 // To hold the address data of this host
 struct sockaddr_in server_addr;
+    char *filename = "tracker.txt";
 
 // ----------------------------------------------------------------------
 // Function to recieve and output alerts from other hosts on the network
@@ -37,9 +38,9 @@ void receive_alerts(int sockfd) {
         if (buffer[0] == 'X')
         {
             memmove(buffer, buffer+1, strlen(buffer));
-            track = fopen ("tracker.txt", "a");
+            track = fopen (filename, "a");
             fprintf(track, "%s\n", buffer);
-            fclose(track); // Close tracker file once all messages sent
+            fclose(track); // Close tracker file once new line appended
         }
 
         else
@@ -62,7 +63,7 @@ int send_alert(int sockfd) {
     if (fgets(buffer, SIZE, stdin) != NULL) {
 
         // Open tracker file and print error message if unsucessful
-        track = fopen("tracker.txt", "r");
+        track = fopen(filename, "r");
         if (!track) {
             printf("[-] Unable to open tracker\n");
             return 0;
@@ -143,7 +144,7 @@ void addToTracker(char *ip, int port, char* line) {
     struct sockaddr_in dest_addr;   // To hold the address data of the host recieving data at a given time
 
     // Check if node is already in tracker
-    track = fopen("tracker.txt", "r");  // Open tracker file to read
+    track = fopen(filename, "r");  // Open tracker file to read
     if (!track) {
         printf("[-] Unable to open tracker\n");
         return;
@@ -173,7 +174,7 @@ void addToTracker(char *ip, int port, char* line) {
     fclose(track);
 
     // If node is not in tracker, add it
-    track = fopen("tracker.txt", "a");
+    track = fopen(filename, "a");
     if (!track) {
         printf("[-] Unable to open tracker\n");
         return;
@@ -186,7 +187,7 @@ void addToTracker(char *ip, int port, char* line) {
     bzero(newHost, 27);
     newHost[0] = 'X';                       // Format it to be recognised on recieving end
     strncat(newHost, line, strlen(line));   // Add the port no. and ip line
-    track = fopen("tracker.txt", "r");
+    track = fopen(filename, "r");
     if (!track) {
         printf("[-] Unable to open tracker\n");
         return;
@@ -218,35 +219,43 @@ void addToTracker(char *ip, int port, char* line) {
 // Create and write to new tracker file
 // -------------------------------------
 void write_file(int sockfd) {
-    int n;
     FILE *fp;
-    char *filename = "myTracker.txt";
     char buffer[FILESIZE];
 
     fp = fopen(filename, "w");
-    if (fp == NULL) {
-        perror("[-]Error in writing file\n");
+    if (!fp) {
+        perror("[-] Error in opening tracker file\n");
         exit(1);
     }
 
     while (1) {
-        n = recv(sockfd, buffer, FILESIZE, 0);
-        if(n <= 0) {
-            break;
-            return;
+        if(recv(sockfd, buffer, FILESIZE, 0) == -1) {
+            perror("[-] Error receiving tracker file\n");
+            exit(1);
         }
         fprintf(fp, "%s", buffer);
         bzero(buffer, FILESIZE);
     }
+    fclose(fp); // Close tracker file finished writing
     return;
+}
+
+// --------------------------------------------------------
+// Send this host tracker file line to tracker distributor
+// --------------------------------------------------------
+void snd_newLine(int sockfd, char * newLine) {
+    if (send(sockfd, newLine, sizeof(newLine), 0) == -1) {
+        perror("[-] Error sending host address line to tracker distibutor");
+        exit(1);
+    }
 }
 
 // ------------------------------------------
 // Get up to date tracker from TrackerServer
 // ------------------------------------------
-int getTracker() {
-    char *ip = "127.0.0.1";
-    int port = 8080; 
+int getTracker(char *line) {
+    char *tracker_ip = "127.0.0.1"; // ********** INSERT TRACKER DISTRIBUTER NODE IP ************
+    int tracker_port = 33333; 
     int e;
 
     int sockfd;
@@ -254,27 +263,33 @@ int getTracker() {
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        perror("[-]Error in socket\n");
+        perror("[-] Error creating socket\n");
         exit(1);
     }
-    printf("[+]Server socket created\n");
+    printf("[+] Tracker distributor socket created\n");
 
+    memset(&server_addr, '\0', sizeof(addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(ip); 
+    server_addr.sin_port = htons(tracker_port);
+    server_addr.sin_addr.s_addr = inet_addr(tracker_ip); 
 
     e = connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
     if (e == -1) {
-        perror("[-]Error in connecting\n");
+        perror("[-] Error connecting to tracker distributor\n");
         exit(1);
     }
-    printf("[+]Connected to server\n");
+    printf("[+] Connected to tracker distibutor\n");
+        printf("hey ");
 
     write_file(sockfd);
-    printf("[+]File data sent successfully\n");
+    printf("[+] Tracker data received successfully\n");
+            printf("hey ");
+
+    snd_newLine(sockfd, line);
+    printf("[+] New tracker line sent successfully\n");
 
     close(sockfd);
-    printf("[+]Disconnected from the server\n");
+    printf("[+] Disconnected from the tracker distributor\n");
 
     return 0;
 }
@@ -309,8 +324,10 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
 
-int h;
-    h = getTracker();
+    if (getTracker(newHost) == -1) {
+        perror("[-] Error getting tracker from tracker distibutor\n");
+        exit(1);
+    }
    
     strcpy(ip_copy, ip); //************do we need this?***********
    

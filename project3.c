@@ -85,7 +85,7 @@ int send_alert(int sockfd) {
                     dest_addr.sin_family = AF_INET;
                     dest_addr.sin_port = destination_port;
                     dest_addr.sin_addr.s_addr = inet_addr(ip);
-                if (!strcmp(buffer, "PANIC\n")){
+                if (!strcmp(buffer, "PANIC 1\n")){ //less urgent panic sendss once 
                     // Then send the alert message to it. Print error message if send unsuccessful
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
                     if (e == -1) {
@@ -93,7 +93,7 @@ int send_alert(int sockfd) {
                         exit(1);
                     }}
 
-                 if (!strcmp(buffer, "PANIC 1\n")){
+                 if (!strcmp(buffer, "PANIC 2\n")){ //more urgent panic sendss once 
                     // Then send the alert message to it. Print error message if send unsuccessful
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));

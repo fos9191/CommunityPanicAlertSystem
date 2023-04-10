@@ -5,7 +5,7 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#define SIZE 250
+#define SIZE 100
 #define FILESIZE 1024
 
 // This host will send and recieve data through server_sockfd, on port no. server_port
@@ -13,7 +13,7 @@ int server_sockfd, server_port;
 
 // To hold the address data of this host
 struct sockaddr_in server_addr;
-    char *filename = "tracker.txt";
+char *filename = "tracker.txt";
 
 // ----------------------------------------------------------------------
 // Function to recieve and output alerts from other hosts on the network
@@ -60,87 +60,65 @@ int send_alert(int sockfd) {
     int e, destination_port;                                // To check data sent successfully, and to hold current destination port
     char buffer[SIZE], ip[20];                              // To hold data to be sent, and each IP address read in respectively
     struct sockaddr_in dest_addr;                           // To hold the address data of the host recieving data at a given time
-    FILE *track;                                            // File to hold connection data for all hosts on the network
+    FILE *track;                                            // To hold connection data for all hosts on the network
 
+    // I
     if (fgets(buffer, SIZE, stdin) != NULL) {
 
         // If we want to close the connection
         if (!strcmp(buffer, "END\n")){ 
             return 1;
         }
+        // If it's a valid panic alert
+        if (!strcmp(buffer, "PANIC1\n") || !strcmp(buffer, "PANIC2\n")) {
+            // Open tracker file and print error message if unsucessful
+            track = fopen(filename, "r");
+            if (!track) {
+                printf("[-] Unable to open tracker\n");
+                return 0;
+            }
 
-        // Open tracker file and print error message if unsucessful
-        track = fopen(filename, "r");
-        if (!track) {
-            printf("[-] Unable to open tracker\n");
-            return 0;
-        }
-
-        if (!strcmp(buffer, "END\n")){ // If we want to close the connection
-            return 1;
-        }
-
-        if (!strcmp(buffer, "PANIC1\n")) {
             while (!feof(track)) { // Until end of file
 
-            fscanf(track, "%d %s\n", &destination_port, ip); // Read in a hosts port and ip address
-            if (server_port != destination_port) {           // If it's not your port...
-                
-                // Set the destination address data
-                dest_addr.sin_family = AF_INET;
-                dest_addr.sin_port = htons(destination_port);
-                dest_addr.sin_addr.s_addr = inet_addr(ip);
-                
-                   // Then send the alert message to it. Print error message if send unsuccessful
-                    e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-                    if (e == -1) {
-                        perror("[-] Error sending alert to the server\n");
-                        exit(1);
-                    } else {
-                        printf("[+] Alert sent to host on port %d\n", destination_port); // For demonstration purposes
-                        bzero(ip, 20); // Clear ip string
+                fscanf(track, "%d %s\n", &destination_port, ip); // Read in a hosts port and ip address
+                if (server_port != destination_port) {           // If it's not your port...
+
+                    // Set the destination address data
+                    dest_addr.sin_family = AF_INET;
+                    dest_addr.sin_port = htons(destination_port);
+                    dest_addr.sin_addr.s_addr = inet_addr(ip);
+
+                    // Less urgent panic sends once 
+                    if (!strcmp(buffer, "PANIC1\n")) { 
+                        // Then send the alert message to it. Print error message if send unsuccessful
+                        e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+                        if (e == -1) {
+                            perror("[-] Error sending alert to the server\n");
+                            exit(1);
+                        }
                     }
-               // }
+
+                    // More urgent panic sends 4 times 
+                    if (!strcmp(buffer, "PANIC2\n")) { 
+                        // Then send the alert message to it. Print error message if send unsuccessful
+                        e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+                        e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+                        e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+                        e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+                        if (e == -1) {
+                            perror("[-] Error sending alert to the server\n");
+                            exit(1);
+                        }
+                    }
+                    printf("[+] Alert sent to host on port %d\n", destination_port); // For demonstration purposes
+                    bzero(ip, 20); // Clear ip string
                 }
             }
-            fclose(track);    
-        }
-        //bzero(buffer, SIZE); // Clear alert data from buffer
-
-        if (!strcmp(buffer, "PANIC2\n")) {
-            while (!feof(track)) { // Until end of file
-
-            fscanf(track, "%d %s\n", &destination_port, ip); // Read in a hosts port and ip address
-            if (server_port != destination_port) {           // If it's not your port...
-                
-                // Set the destination address data...
-                dest_addr.sin_family = AF_INET;
-                dest_addr.sin_port = htons(destination_port);
-                dest_addr.sin_addr.s_addr = inet_addr(ip);
-                
-               // if (!strcmp(buffer, "PANIC1\n")) { //less urgent panic sends once 
-                    // Then send the alert message to it. Print error message if send unsuccessful
-                    e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-                    e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-                    e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-                    e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-                    if (e == -1) {
-                        perror("[-] Error sending alert to the server\n");
-                        exit(1);
-                    } else {
-                        printf("[+] Alert sent to host on port %d\n", destination_port); // For demonstration purposes
-                        bzero(ip, 20); // Clear ip string
-                    }
-               // }
-                }
-            }
-            fclose(track);    
+            fclose(track);       // Close tracker file once all messages sent
         }
         bzero(buffer, SIZE); // Clear alert data from buffer
-
     }
-    
-    printf("[+] Finished sending\n");
+    printf("[+] Finished sending\n\n");
     return 0;    
 }
 
@@ -288,8 +266,8 @@ void snd_newLine(int sockfd, char *newLine) {
 // Get up to date tracker from TrackerServer
 // ------------------------------------------
 int getTracker(char *line) {
-    char *tracker_ip = "127.0.0.1"; // Tracker Distributor node IP
-    int tracker_port = 12000; 
+    char *tracker_ip = "10.35.70.11"; // Tracker Distributor node IP
+    int tracker_port = 33333; 
     int e;
 
     int sockfd;

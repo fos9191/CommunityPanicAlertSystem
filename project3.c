@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <pthread.h>
 #define SIZE 100
@@ -53,16 +54,16 @@ void receive_alerts(int sockfd) {
 // Function to send alerts to all other hosts on the network on user request
 // --------------------------------------------------------------------------
 int send_alert(int sockfd) {
-    time_t now = time(NULL);                      // fetching time
+    time_t now = time(NULL);                                // Fetching time
     
     char* current_time = ctime(&now);
     char alert[50];
-    sprintf(alert, "Time of Alert : %s\n\n", current_time); //formats string
-    int e, destination_port;                      // To check data sent successfully, and to hold current destination port
-    char buffer[SIZE], ip[20];                    // To hold data to be sent, and each IP address read in respectively
-    //char alert[] = "time latitude longitude\n\n"; // Place-holder for actual time and location data which will be retrieved by the app
-    struct sockaddr_in dest_addr;                 // To hold the address data of the host recieving data at a given time
-    FILE *track;                                  // File to hold connection data for all hosts on the network
+    sprintf(alert, "Time of Alert : %s\n\n", current_time); // Formats string
+    int e, destination_port;                                // To check data sent successfully, and to hold current destination port
+    char buffer[SIZE], ip[20];                              // To hold data to be sent, and each IP address read in respectively
+    //char alert[] = "time latitude longitude\n\n";           // Place-holder for actual time and location data which will be retrieved by the app
+    struct sockaddr_in dest_addr;                           // To hold the address data of the host recieving data at a given time
+    FILE *track;                                            // File to hold connection data for all hosts on the network
 
     if (fgets(buffer, SIZE, stdin) != NULL) {
 
@@ -77,16 +78,17 @@ int send_alert(int sockfd) {
             return 1;
         }
 
-         while (!feof(track)) { // Until end of file
+        while (!feof(track)) { // Until end of file
 
-                fscanf(track, "%d %s\n", &destination_port, ip); // Read in a hosts port and ip address
-                if (server_port != destination_port) {           // If it's not your port...
-                   
-                    // Set the destination address data...
-                    dest_addr.sin_family = AF_INET;
-                    dest_addr.sin_port = destination_port;
-                    dest_addr.sin_addr.s_addr = inet_addr(ip);
-                if (!strcmp(buffer, "PANIC 1\n")){ //less urgent panic sendss once 
+            fscanf(track, "%d %s\n", &destination_port, ip); // Read in a hosts port and ip address
+            if (server_port != destination_port) {           // If it's not your port...
+                
+                // Set the destination address data...
+                dest_addr.sin_family = AF_INET;
+                dest_addr.sin_port = htons(destination_port);
+                dest_addr.sin_addr.s_addr = inet_addr(ip);
+                
+                if (!strcmp(buffer, "PANIC1\n")) { //less urgent panic sends once 
                     // Then send the alert message to it. Print error message if send unsuccessful
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
                     if (e == -1) {
@@ -94,7 +96,7 @@ int send_alert(int sockfd) {
                         exit(1);
                     }}
 
-                 if (!strcmp(buffer, "PANIC 2\n")){ //more urgent panic sendss once 
+                if (!strcmp(buffer, "PANIC2\n")) { //more urgent panic sendss once 
                     // Then send the alert message to it. Print error message if send unsuccessful
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
@@ -103,13 +105,15 @@ int send_alert(int sockfd) {
                     if (e == -1) {
                         perror("[-] Error sending alert to the server\n");
                         exit(1);
-                    }}
-
-                    printf("[+] Alert sent to host on port %d\n", destination_port); // For demonstration purposes
-                    bzero(ip, 20); // Clear ip string
+                    }
                 }
+
+                printf("[+] Alert sent to host on port %d\n", destination_port); // For demonstration purposes
+                bzero(ip, 20); // Clear ip string
             }
-            fclose(track); // Close tracker file once all messages sent
+        bzero(buffer, SIZE); // Clear alert data from buffer
+        }
+        fclose(track); // Close tracker file once all messages sent
 
     }
     printf("[+] Finished sending\n");
@@ -272,7 +276,7 @@ void snd_newLine(int sockfd, char *newLine) {
 // Get up to date tracker from TrackerServer
 // ------------------------------------------
 int getTracker(char *line) {
-    char *tracker_ip = "10.35.70.11"; // ********** INSERT TRACKER DISTRIBUTER NODE IP ************
+    char *tracker_ip = "10.35.70.11"; // Tracker Distributor node IP
     int tracker_port = 33333; 
     int e;
 
@@ -345,7 +349,7 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
    
-    strcpy(ip_copy, ip); //************do we need this?***********
+    strcpy(ip_copy, ip);
    
     // Create socket
     server_sockfd = socket(AF_INET, SOCK_DGRAM, 0);

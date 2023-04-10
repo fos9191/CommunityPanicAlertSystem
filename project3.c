@@ -23,7 +23,7 @@ void receive_alerts(int sockfd) {
     int e;               // To check that data is received successfully
     char buffer[SIZE];   // To hold recieved message
     socklen_t addr_size; // To hold size of server_addr
-    FILE *track;         // File to hold connection data for all hosts on the network
+    FILE *track;         // To hold connection data for all hosts on the network
 
     while (1) {
         addr_size = sizeof(server_addr);
@@ -36,14 +36,12 @@ void receive_alerts(int sockfd) {
             exit(1);
         }
 
-        if (buffer[0] == 'X')
-        {
+        if (buffer[0] == 'X') {
             memmove(buffer, buffer+1, strlen(buffer));
             track = fopen (filename, "a");
             fprintf(track, "%s\n", buffer);
             fclose(track); // Close tracker file once new line appended
         }
-
         else
             printf("[+] Recieving data: %s", buffer); // For demonstration purposes
     }
@@ -58,15 +56,18 @@ int send_alert(int sockfd) {
     
     char* current_time = ctime(&now);
     char alert[50];
-    sprintf(alert, "Time of Alert : %s\n\n", current_time); // Formats string
+    sprintf(alert, "Time of Alert : %s\n", current_time);   // Formats string
     int e, destination_port;                                // To check data sent successfully, and to hold current destination port
     char buffer[SIZE], ip[20];                              // To hold data to be sent, and each IP address read in respectively
-    //char alert[] = "time latitude longitude\n\n";           // Place-holder for actual time and location data which will be retrieved by the app
     struct sockaddr_in dest_addr;                           // To hold the address data of the host recieving data at a given time
     FILE *track;                                            // File to hold connection data for all hosts on the network
-    bzero(buffer, SIZE);
 
     if (fgets(buffer, SIZE, stdin) != NULL) {
+
+        // If we want to close the connection
+        if (!strcmp(buffer, "END\n")){ 
+            return 1;
+        }
 
         // Open tracker file and print error message if unsucessful
         track = fopen(filename, "r");
@@ -85,13 +86,12 @@ int send_alert(int sockfd) {
             fscanf(track, "%d %s\n", &destination_port, ip); // Read in a hosts port and ip address
             if (server_port != destination_port) {           // If it's not your port...
                 
-                // Set the destination address data...
+                // Set the destination address data
                 dest_addr.sin_family = AF_INET;
                 dest_addr.sin_port = htons(destination_port);
                 dest_addr.sin_addr.s_addr = inet_addr(ip);
                 
-               // if (!strcmp(buffer, "PANIC1\n")) { //less urgent panic sends once 
-                    // Then send the alert message to it. Print error message if send unsuccessful
+                   // Then send the alert message to it. Print error message if send unsuccessful
                     e = sendto(sockfd, alert, strlen(alert), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
                     if (e == -1) {
                         perror("[-] Error sending alert to the server\n");
@@ -159,7 +159,7 @@ void *srvr(void *a) {
 // Client thread function for sending alerts
 // ------------------------------------------
 void *clnt(void *a) {
-    int state = 0; //while state = 0, keep the connection open
+    int state = 0; // While state = 0, keep the connection open
    
     while (state == 0){
         state = send_alert(server_sockfd); // Call sender function
@@ -178,7 +178,6 @@ void addToTracker(char *ip, int port, char* line) {
     FILE *track;
     int e, destination_port;        // To check data sent successfully, and to hold current destination port
     char ip_addr[20];
-    // char buffer[26];                // *ALT*
     char newHost[27];               // newHost to hold this hosts addition to the tracker
     struct sockaddr_in dest_addr;   // To hold the address data of the host recieving data at a given time
 
@@ -188,26 +187,15 @@ void addToTracker(char *ip, int port, char* line) {
         printf("[-] Unable to open tracker\n");
         return;
     }
+    
     while (!feof(track)) { // Until end of file
         fscanf(track, "%d %s\n", &destination_port, ip_addr); // Read in a hosts port and ip address
        
-        if (port == destination_port) { // If port is equal to a port in the tracker
-            if (!strcmp(ip_addr, ip)){  // If IP-address is equal to that ports IP-address
-                printf("[-] Node already in tracker\n");
-                bzero(ip_addr, 20);     // Clear ip string
-                return;                 // Don't add to tracker a second time
-            }  
+        if (port == destination_port && !strcmp(ip_addr, ip)) { // If port and IP already in tracker
+            printf("[-] Node already in tracker\n");
+            bzero(ip_addr, 20);     // Clear ip string
+            return;                 // Don't add to tracker a second time
         }
-
-        //       *ALT*
-        // fscanf(track, "%s\n", buffer);  // Read in a hosts port and ip address
-        // if (!strcmp(line, buffer)) {    // If they are equal to this hosts port and IP-address
-        //     printf("[-] Node already in tracker\n");
-        //     bzero(buffer, 26);          // Clear buffer
-        //     return;                     // Don't add to tracker a second time
-        // }  
-        // bzero(buffer, 26); // Clear buffer
-
         bzero(ip_addr, 20); // Clear ip string
     }
     fclose(track);
@@ -235,7 +223,7 @@ void addToTracker(char *ip, int port, char* line) {
         fscanf(track, "%d %s\n", &destination_port, ip_addr);   // Read in a hosts port and ip address
         if (server_port != destination_port) {                  // If it's not your port...
             
-            // Set the destination address data...
+            // Set the destination address data
             dest_addr.sin_family = AF_INET;
             dest_addr.sin_port = htons(destination_port);
             dest_addr.sin_addr.s_addr = inet_addr(ip_addr);
@@ -262,27 +250,27 @@ void write_file(int sockfd) {
     char buffer[FILESIZE];
     char *newfile = "tracker.txt";
     
-    // open file
+    // Open file
     fp = fopen(newfile, "w");
     if (!fp) {
         perror("[-] Error in opening tracker file\n");
         exit(1);
     }
 
-    //receive data from distributor, write it to the tracker file
+    // Receive data from distributor, write it to the tracker file
     while(1) {
         if(recv(sockfd, buffer, FILESIZE, 0) == -1) {
             perror("[-] Error receiving tracker file\n");
             exit(1);
         }
-        if (buffer[0] == 'X') { //if the server is finished sending, break out of the loop
+        if (buffer[0] == 'X') { // If the server is finished sending, break out of the loop
             break;
         }
-        fprintf(fp, "%s", buffer); //write the data to local tracker file
-        bzero(buffer, FILESIZE); //clear the buffer
+        fprintf(fp, "%s", buffer);  // Write the data to local tracker file
+        bzero(buffer, FILESIZE);    // Clear the buffer
     }
 
-    fclose(fp); // Close tracker file finished writing
+    fclose(fp); // Close tracker file  once finished writing
     return;
 }
 
@@ -291,7 +279,7 @@ void write_file(int sockfd) {
 // --------------------------------------------------------
 void snd_newLine(int sockfd, char *newLine) {
     if (send(sockfd, newLine, 26, 0) == -1) {
-        perror("[-] Error sending host address line to tracker distibutor");
+        perror("[-] Error sending host address line to tracker distibutor\n");
         exit(1);
     }
 }

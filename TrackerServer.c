@@ -85,7 +85,7 @@ void recv_newLine(int sockfd) {
 }
 
 int main() {
-    char *ip = "10.35.70.11";
+    char *ip = "10.35.70.41";
     int port = 33333; 
     int e;
 

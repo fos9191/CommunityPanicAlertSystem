@@ -1,13 +1,13 @@
-# Project 2 - Community Panic Alert System
+# Project 3 - Community Panic Alert System
 
-### by Fiona Eguare & Santosh Venkataraman (Group 13)
+### by Fiona Eguare, Fionnán O'Sullivan, Aaron McCann & Santosh Venkataraman (Group 11)
 
-This README contains the setup, compilation and testing guidelines for our project 2 submission. In short, our idea is to provide a service that allows civilians to alert those around them if they feel that they are in danger.
+This README contains the setup, compilation and testing guidelines for our project 3 submission. In short, our idea is to provide a service that allows civilians to alert those around them if they feel that they are in danger.
 This program is written in C and makes use of basic C libraries as listed below. Enjoy!!!
 
 ## Specifications
 
-- This program must be run in WSL or on an Ubuntu machine
+- This program must be run in WSL or on an Linux machine
 - WSL 1 is required to run this program across multiple devices on Windows
 - CC or GCC compiler needed
 
@@ -20,42 +20,40 @@ The libraries required to run this program are as follows:
 - stdlib.h
 - string.h
 - unistd.h
+- time.h
 - arpa/inet.h
 - pthread.h
 
 ## How to Setup
 
-- This program will come set up to be run in up to 6 terminals on one device, thus all hosts recorded in the tracker will have the local host IP address
-- If you wish to run this program with multiple devices as hosts you must edit the IP addresses in the tracker file to the IP addresses of the host machines
-  - To retrieve the IP address of a device run the command " hostname -I " in the WSL/ Ubuntu terminal
-- If you wish to change the number of hosts, simply edit the tracker.txt file, adding or removing entries, but maintaining the formatting (Port IP\n)
-  - ensure there is a new line after the last entry
-- If you wish to differentiate between each hosts message, edit the string assigned on line 46 before compiling each host. This is not necessary
+- To setup this network, simply clone this repo onto each device
+- If you wish to run multiple hosts on the same device, we suggest you place each copy of the repo in a seperate folder to avoid the different hosts writing to the same file
+- The program is set to have Raspberry Pi 41 as the tracker distributor. If you wish to change this, just update the IP addresses on line 269 in project3.c & 88 in TrackerServer.c
 
 ## How to Compile
 
-- This program can be compiled like any standard C program using pThreads
+- The main program can be compiled like any standard C program using pThreads
+- The tracker distributor code can be compiled just like normal
 - Ensure you are in the right directory, have all necessary libraries
-- For CC: cc -o panic project2.c -pthread
-- For GCC:  gcc -o panic project2.c -pthread
+- Tracker Distributor:
+  - For CC: ```cc TrackerServer.c -o track```
+  - For GCC: ```gcc TrackerServer.c -o track```
+- Connecting Host:
+  - For CC: ```cc -o panic project3.c -pthread```
+  - For GCC: ```gcc -o panic project3.c -pthread```
 
 ## How to Test
 
 - When running the program, ensure to provide the hosts port number and the hosts IP address as arguments (in this order)
-  - For example: ./panic 12000 127.0.0.1
-- Port numbers can be randomly selected but must match those selected in tracker.txt and must be paired with the same IP addresses
-- Each host can only broadcast 1 message before being restarted as this suits the use of the program
+  - For example: ```./panic 33001 10.35.70.42```
+  - To find your IP address, enter ```hostname -I``` into the terminal
+- Port numbers can be randomly selected but must be in the range 33000-33999 to be run on the Raspberry Pi's
 - The program will keep running until you close it from the terminal (shift + c) so it can keep listening for alerts, as this suits the use of the program
-- When all hosts are running, each terminal should look like this:
-    ~~~
-    [+] Creating receiver thread
-    [+] Creating sender thread
-
-    ~~~
-- At this point you can input 'PANIC' into any one of the terminals and press enter
-- This will broadcast a placeholder alert message to all hosts on the network
-  - If you wish to personalise this message to each host see the last point in How to Setup
-- terminal outputs starting with [-] indicate errors
+- At this point you can input 'PANIC1' into any one of the non-tracker-distributor terminals and press enter
+- This will broadcast an alert message to all hosts on the network
+- Alternatively, for a more urgent alert, enter 'PANIC2'. This will send more alerts to each host on the network
+- To close the sender thread, enter 'END'
+- Terminal outputs starting with [-] indicate errors
 
 
 ## References
